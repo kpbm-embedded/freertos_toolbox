@@ -175,9 +175,9 @@ scripts/app test             # tests/test_smoke.sh: help, usage errors, pins for
 scripts/app test --all       # + examples test (14 qemu runs, 63 board builds), templates test (11), app host tests
 ```
 
-Last run (2026-10-29): smoke 24/24; examples 77/77 (14 qemu PASS + 63 board builds); templates 11/11; app host tests 3/3;
+Last run (2026-10-29): smoke 24/24; examples 79/79 (16 qemu PASS + 63 board builds); templates 13/13; app host tests 3/3;
 doctor ok. Fresh clone (`BOX_INTEGRATION=0`, core pins + Cube F4 reinstalled from the pins): doctor ok, smoke 24/24,
-examples 30 ok + 47 skipped (F1/G4/H7 packs not installed there), templates 11/11. Nothing ran on hardware.
+examples 32 ok + 47 skipped (F1/G4/H7 packs not installed there), templates 13/13. Nothing ran on hardware.
 
 ## Git and a fresh clone
 
