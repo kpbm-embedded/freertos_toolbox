@@ -1,0 +1,7 @@
+name        = "tasks-queue"
+sdk         = "freertos"
+description = "Producer/consumer tasks over a FreeRTOS queue, with overflow accounting"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "BlackPill F411, WeAct G431, mini H743 or BluePill F103; USB-UART on PA9/PA10 for the log"
+features    = ["freertos", "queue", "tasks", "vTaskDelayUntil"]
+status      = "builds; untested on hardware"

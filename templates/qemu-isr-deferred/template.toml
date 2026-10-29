@@ -1,0 +1,4 @@
+name        = "qemu-isr-deferred"
+description = "Deferred interrupt handling: a short timer ISR hands work to a task with a task notification and data with a stream buffer"
+targets     = ["mps2-an385"]
+checks      = ["build", "qemu"]          # what `scripts/app templates test` does with an instance

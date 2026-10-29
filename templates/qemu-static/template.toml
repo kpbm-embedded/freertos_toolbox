@@ -1,0 +1,4 @@
+name        = "qemu-static"
+description = "Static allocation only: no FreeRTOS heap linked, every task/queue created from application memory"
+targets     = ["mps2-an385"]
+checks      = ["build", "qemu"]          # what `scripts/app templates test` does with an instance

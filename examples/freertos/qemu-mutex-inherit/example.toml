@@ -1,0 +1,7 @@
+name        = "qemu-mutex-inherit"
+sdk         = "freertos"
+description = "Mutex priority inheritance checked live (low task raised to high while it holds the mutex) and recursive mutex depth"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu-system-arm -M mps2-an385 (Cortex-M3), console on UART0, exit code via semihosting"
+features    = ["freertos", "mutex", "priority-inheritance", "qemu"]
+status      = "tested on qemu (scripts/app examples test); not run on a board"

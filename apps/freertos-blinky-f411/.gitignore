@@ -1,0 +1,7 @@
+cmake-build-*/
+.idea/workspace.xml
+.idea/shelf/
+managed_components/
+dependencies.lock
+# CLion CMake profiles hold this machine's absolute paths (environment of toolchain/freertos/env.sh): not committed.
+.idea/cmake.xml

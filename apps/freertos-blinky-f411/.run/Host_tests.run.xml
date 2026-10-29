@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Host tests" type="CTestRunConfiguration" folderName="Tests" factoryName="CTestRun" PROGRAM_PARAMS="--output-on-failure" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="freertos-blinky-f411_host_tests" TARGET_NAME="All CTest" CONFIG_NAME="Host-Tests" TEST_MODE="SUITE_TEST">
+    <method v="2">
+      <option name="CLION.COMPOUND.BUILD" enabled="true" />
+    </method>
+  </configuration>
+</component>

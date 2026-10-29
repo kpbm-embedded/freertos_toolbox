@@ -1,0 +1,7 @@
+name        = "qemu-sw-timers"
+sdk         = "freertos"
+description = "Software timers: auto-reload and one-shot, timer IDs, period change, reset, pended function calls"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu-system-arm -M mps2-an385 (Cortex-M3), console on UART0, exit code via semihosting"
+features    = ["freertos", "timers", "qemu"]
+status      = "tested on qemu (scripts/app examples test); not run on a board"

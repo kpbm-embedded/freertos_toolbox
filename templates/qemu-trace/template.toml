@@ -1,0 +1,4 @@
+name        = "qemu-trace"
+description = "Run-time stats from a hardware counter and trace hooks (task switches, queue traffic) ready to fill in"
+targets     = ["mps2-an385"]
+checks      = ["build", "qemu"]          # what `scripts/app templates test` does with an instance

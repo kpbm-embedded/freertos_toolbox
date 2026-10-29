@@ -1,0 +1,7 @@
+name        = "uart-hello"
+sdk         = "freertos"
+description = "Hello task on USART1 plus RX interrupt -> stream buffer -> echo task"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "USB-UART adapter on PA9 (TX) / PA10 (RX), GND common"
+features    = ["freertos", "uart", "stream-buffer", "isr-to-task"]
+status      = "builds; untested on hardware"

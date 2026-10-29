@@ -1,0 +1,4 @@
+name        = "stm32-app-tests"
+description = "STM32 FreeRTOS app with its logic in lib/ (moving average filter) and GoogleTest host tests"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+checks      = ["build", "host-tests"]          # what `scripts/app templates test` does with an instance

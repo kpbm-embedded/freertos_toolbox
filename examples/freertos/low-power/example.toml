@@ -1,0 +1,7 @@
+name        = "low-power"
+sdk         = "freertos"
+description = "Tickless idle (configUSE_TICKLESS_IDLE): SysTick suppressed and WFI while all tasks block"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "On-board LED; USB-UART on PA9/PA10 for the statistics"
+features    = ["freertos", "tickless-idle", "low-power", "wfi"]
+status      = "builds; untested on hardware"

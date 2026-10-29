@@ -1,0 +1,7 @@
+name        = "qemu-stream-buffer"
+sdk         = "freertos"
+description = "Stream buffer from a 2 kHz timer ISR to a task with a trigger level; every byte checked in order"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu-system-arm -M mps2-an385 (Cortex-M3), console on UART0, exit code via semihosting"
+features    = ["freertos", "stream-buffer", "isr", "qemu"]
+status      = "tested on qemu (scripts/app examples test); not run on a board"

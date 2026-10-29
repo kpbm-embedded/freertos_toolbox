@@ -1,0 +1,4 @@
+name        = "qemu-active-object"
+description = "Active object: one task owns a state machine and an event queue; the state machine is plain C in lib/ with GoogleTest host tests"
+targets     = ["mps2-an385"]
+checks      = ["build", "qemu", "host-tests"]          # what `scripts/app templates test` does with an instance

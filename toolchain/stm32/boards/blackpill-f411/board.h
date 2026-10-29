@@ -1,0 +1,23 @@
+#pragma once
+#define BOARD_NAME "blackpill-f411"
+#define BOARD_HAL_HEADER "stm32f4xx_hal.h"
+#ifdef BOARD_USB48
+#define BOARD_SYSCLK_HZ 96000000U
+#else
+#define BOARD_SYSCLK_HZ 100000000U
+#endif
+#define BOARD_TIM_APB1_HZ BOARD_SYSCLK_HZ      /* APB1 /2 -> timers x2 */
+#define BOARD_TIM_APB2_HZ BOARD_SYSCLK_HZ      /* APB2 /1 */
+#define BOARD_LED_PORT GPIOC
+#define BOARD_LED_PIN GPIO_PIN_13
+#define BOARD_LED_ACTIVE_LOW 1
+#define BOARD_LED_CLK_EN() __HAL_RCC_GPIOC_CLK_ENABLE()
+#define BOARD_HAS_BUTTON 1
+#define BOARD_BTN_PORT GPIOA
+#define BOARD_BTN_PIN GPIO_PIN_0
+#define BOARD_BTN_ACTIVE_LOW 1
+#define BOARD_BTN_PULL GPIO_PULLUP
+#define BOARD_BTN_CLK_EN() __HAL_RCC_GPIOA_CLK_ENABLE()
+#define BOARD_BTN_IRQn EXTI0_IRQn
+#define BOARD_BTN_IRQ_HANDLER EXTI0_IRQHandler
+#include "board_common.h"

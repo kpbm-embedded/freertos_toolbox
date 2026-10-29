@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.20)
+# @NAME@: FreeRTOS on an STM32 board (board layer toolchain/stm32/boards + STM32Cube HAL). Build: scripts/app build <this dir>
+if(NOT DEFINED ENV{STM32_CUBE_F4} OR NOT DEFINED ENV{FREERTOS_KERNEL})
+  message(FATAL_ERROR "source <freertos-box>/toolchain/freertos/env.sh first (scripts/app does it)")
+endif()
+set(STM32_BOARDS "$ENV{STM32_CUBE_F4}/../boards" CACHE PATH "toolchain/stm32/boards")
+set(CMAKE_TOOLCHAIN_FILE ${STM32_BOARDS}/arm-none-eabi.cmake)
+set(BOARD "blackpill-f411" CACHE STRING "blackpill-f411 | weact-g431 | mini-h743 | bluepill-f103")
+project(@NAME@ C ASM)
+include(${STM32_BOARDS}/board.cmake)
+include($ENV{FREERTOS_KERNEL}/../common/freertos.cmake)
+add_executable(@NAME@ src/main.c)
+freertos_board(@NAME@)

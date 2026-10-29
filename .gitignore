@@ -1,0 +1,50 @@
+# freertos-box: only sources go into git. Toolchains, SDK packs, the kernel and qemu are installed again from
+# config/pins.tsv by `scripts/app bootstrap` (core) and `scripts/setup install stm32|flash` (sha256 / git commit checked).
+/build/
+/cache/
+/out/
+# toolchain/: keep only this ID's own files (env.sh, plugins, board layers, cmake helpers, READMEs)
+/toolchain/*
+!/toolchain/freertos/
+/toolchain/freertos/*
+!/toolchain/freertos/env.sh
+!/toolchain/freertos/sdk.sh
+!/toolchain/freertos/README.md
+!/toolchain/freertos/common/
+!/toolchain/freertos/qemu/
+!/toolchain/freertos/examples/
+!/toolchain/stm32/
+/toolchain/stm32/*
+!/toolchain/stm32/env.sh
+!/toolchain/stm32/sdk-common.sh
+!/toolchain/stm32/README.md
+!/toolchain/stm32/boards/
+!/toolchain/stm32/examples/
+!/toolchain/tools/
+/toolchain/tools/*
+!/toolchain/tools/env.sh
+!/toolchain/tools/sdk.sh
+!/toolchain/tools/README.md
+!/toolchain/tools/udev/
+!/toolchain/host/
+/toolchain/host/*
+!/toolchain/host/env.sh
+!/toolchain/host/sdk.sh
+!/toolchain/host/README.md
+!/toolchain/host/sysbin.list
+!/toolchain/host/patch-rpath.sh
+!/toolchain/host/update-lib.sh
+!/toolchain/host/libcheck.py
+!/toolchain/clion/
+/toolchain/clion/*
+!/toolchain/clion/cmake/
+# build trees, IDE state, editor and Python leftovers anywhere
+cmake-build-*/
+build/
+.idea/workspace.xml
+.idea/shelf/
+__pycache__/
+*.pyc
+*.log
+.venv/
+.pixi/

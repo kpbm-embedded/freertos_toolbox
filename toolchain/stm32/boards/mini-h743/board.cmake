@@ -1,0 +1,15 @@
+# STM32H743VIT6 "mini" min-system board (WeAct MiniSTM32H743 class). Sources: Zephyr boards/weact/mini_stm32h743/mini_stm32h743.dts
+# (user_led PE3 active high, user_button PC13 pull-down active high, clk_hse 25 MHz, power-supply ldo).
+set(B_FAMILY H7)
+set(B_ID MINI_H743)
+set(B_DEVICE STM32H743xx)
+set(B_STARTUP stm32h743xx)
+set(B_MCU_FLAGS -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard)
+set(B_HSE_HZ 25000000)
+set(B_FLASH_ORIGIN 0x08000000)
+set(B_FLASH_LEN 2048K)
+set(B_RAM_ORIGIN 0x24000000)      # AXI SRAM 512K (D1)
+set(B_RAM_LEN 512K)
+set(B_EXTRA_MODULES uart exti)
+set(B_FREERTOS_PORT ARM_CM7/r0p1)
+set(B_FREERTOS_HEAP 65536)

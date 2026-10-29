@@ -1,0 +1,4 @@
+name        = "qemu-supervisor"
+description = "Task health supervisor: workers check in through event-group bits, a supervisor detects a stuck task (where a watchdog would be fed)"
+targets     = ["mps2-an385"]
+checks      = ["build", "qemu"]          # what `scripts/app templates test` does with an instance

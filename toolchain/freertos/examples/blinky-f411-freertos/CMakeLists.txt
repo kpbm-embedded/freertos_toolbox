@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.20)
+set(SE ${CMAKE_CURRENT_LIST_DIR}/../../../stm32/examples)
+set(CMAKE_TOOLCHAIN_FILE ${SE}/common/arm-none-eabi.cmake)
+project(blinky-f411-freertos C ASM)
+include(${SE}/common/stm32f411.cmake)
+set(FRK ${CMAKE_CURRENT_LIST_DIR}/../../FreeRTOS-Kernel)
+add_library(freertos STATIC ${FRK}/tasks.c ${FRK}/list.c ${FRK}/queue.c ${FRK}/timers.c
+  ${FRK}/portable/GCC/ARM_CM4F/port.c ${FRK}/portable/MemMang/heap_4.c)
+target_include_directories(freertos PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src ${FRK}/include ${FRK}/portable/GCC/ARM_CM4F)
+target_link_libraries(freertos PUBLIC stm32f411_hal)
+add_executable(blinky-f411-freertos src/main.c)
+target_link_libraries(blinky-f411-freertos freertos)
+stm32f411_finish(blinky-f411-freertos)

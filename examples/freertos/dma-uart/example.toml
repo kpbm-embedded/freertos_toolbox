@@ -1,0 +1,7 @@
+name        = "dma-uart"
+sdk         = "freertos"
+description = "Queue-fed console server task sending USART1 TX by DMA; TX-complete ISR notifies it"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "USB-UART adapter on PA9 (TX) / PA10 (RX)"
+features    = ["freertos", "dma", "uart", "queue", "task-notification"]
+status      = "builds; untested on hardware"

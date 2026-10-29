@@ -1,0 +1,486 @@
+#!/usr/bin/env bash
+# app - build, test, flash and monitor this ID's FreeRTOS apps and examples with its own toolchain only.
+#
+# Run `scripts/app help` for the commands. Self-contained: sources toolchain/freertos/env.sh (host, tools and
+# stm32 copies in this ID) and nothing else. Build dirs are the same as the CLion profiles in <app>/.idea/cmake.xml.
+set -euo pipefail
+case "$(uname -s)" in Linux|Darwin) ;; *) case "${1:-help}" in help|-h|--help) ;; *)   # exit 3 elsewhere
+  echo "app: not supported on $(uname -s): the toolchains and SDKs here are Linux builds; use a Linux VM or WSL" >&2; exit 3 ;; esac ;; esac
+
+ROOT="$(cd -P "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd -P)"
+# The toolchain environment is sourced only by the commands that need it (need_env), so setup/doctor/help work
+# in a fresh clone before anything is installed.
+need_env() {
+  [[ -z "${FREERTOS_KERNEL:-}" || -z "${FREERTOS_QEMU:-}" ]] || return 0
+  [[ -f "$ROOT/toolchain/host/buildtools/environment-setup-x86_64-pokysdk-linux" ]] ||
+    die "toolchain not installed: run 'scripts/app bootstrap' first"
+  # shellcheck source=SCRIPTDIR/../toolchain/freertos/env.sh
+  source "$ROOT/toolchain/freertos/env.sh"
+}
+box_out_of() { # DIR -> DIR's path under the Box `out` location, or nothing (standalone / outside Box)
+  # BOX: the environment, else the folder holding .boxroot above DIR (older trees: the one holding box_env.sh).
+  # Base: $BOX_OUT_<NN_NN> (the ID's own [paths] out), else $BOX_OUT, else $BOX_V3 (old name); missing values come
+  # from the generated box_env.d/locations.sh. BOX_INTEGRATION=0 forces standalone.
+  local dir="$1" box="${BOX:-}" kit=00_09_meta/00_system/00_01_box_env rel id base idv idval="" sub
+  [ "${BOX_INTEGRATION:-1}" != 0 ] || return 0
+  while [ -z "$box" ] && [ "$dir" != / ] && [ -n "$dir" ]; do
+    dir="$(dirname "$dir")"
+    if [ -e "$dir/.boxroot" ] || [ -r "$dir/$kit/box_env.sh" ]; then box="$dir"; fi
+  done
+  [ -n "$box" ] && [ -d "$box" ] || return 0
+  box="$(cd -P "$box" && pwd -P)"
+  rel="${1#"$box"/}"
+  [ "$rel" != "$1" ] || return 0
+  id="${rel#*/}"; id="${id#*/}"; id="${id%%/*}"; idv="BOX_OUT_$(printf %.5s "$id")"
+  base="${BOX_OUT:-${BOX_V3:-}}"
+  eval "idval=\"\${$idv:-}\""
+  if { [ -z "$base" ] || [ -z "$idval" ]; } && [ -r "$box/$kit/box_env.d/locations.sh" ]; then
+    # shellcheck disable=SC1090,SC1091  # generated per host
+    base="${base:-$(BOX="$box"; . "$box/$kit/box_env.d/locations.sh" >/dev/null 2>&1; printf %s "${BOX_OUT:-${BOX_V3:-}}")}"
+    # shellcheck disable=SC1090,SC1091
+    [ -n "$idval" ] || idval="$(BOX="$box"; . "$box/$kit/box_env.d/locations.sh" >/dev/null 2>&1; eval "printf %s \"\${$idv:-}\"")"
+  elif [ -z "$base" ] && [ -r "$box/$kit/box_env.sh" ]; then        # a tree from before locations.sh
+    # shellcheck disable=SC2016  # expanded by the child shell
+    base="$(BOX="$box" bash -c '. "$1" >/dev/null 2>&1; printf %s "${BOX_V3:-}"' _ "$box/$kit/box_env.sh")"
+  fi
+  case "$id" in [0-9][0-9]_[0-9][0-9]_*) ;; *) idval="" ;; esac
+  if [ -n "$idval" ]; then                                         # the ID's own out (+ DIR's path inside the ID)
+    sub="${rel#*/}"; sub="${sub#*/}"
+    case "$sub" in */*) sub="${sub#*/}" ;; *) sub="" ;; esac
+    printf '%s\n' "$idval${sub:+/$sub}"; return 0
+  fi
+  if [ -n "$base" ] && [ -d "$base" ]; then printf '%s\n' "$base/$rel"; fi
+}
+# Build output base: $FREERTOS_OUT, else this ID's path under the Box `out` location + /build (box_out_of),
+# else ROOT/build. BOX_INTEGRATION=0 forces standalone (ROOT/build).
+default_out() {
+  local o
+  o="$(box_out_of "$ROOT")"
+  if [[ -n "$o" ]]; then echo "$o/build"; else echo "$ROOT/build"; fi
+}
+OUT="${FREERTOS_OUT:-$(default_out)}"
+JOBS="${JOBS:-$(nproc)}"
+JOBS=$((JOBS > 8 ? 8 : JOBS))   # shared machine: at most 8 parallel jobs
+QEMU_TIMEOUT="${QEMU_TIMEOUT:-60}"
+EXAMPLES="$ROOT/examples/freertos"
+
+usage() {
+  cat <<'EOF'
+app - build, test, flash and monitor this ID's FreeRTOS apps and examples with its own toolchain only.
+
+usage: scripts/app <command> [args]
+
+commands:
+  bootstrap                          install the core pins (toolchain, kernel, qemu, GoogleTest): scripts/setup install core
+  setup   <list|check|install|fetch|latest> [group|name...]   pinned components (config/pins.tsv); groups core, stm32, flash
+  doctor                             are the tools present? (core must be; stm32 packs and flash tools only warn)
+  update  [--check]                  --check: newest upstream tags of the pinned components; without: how to bump a pin
+  build   <app> [Debug|Release]      -> $FREERTOS_OUT/apps/<app>/cmake-build-<profile>/<app>.{elf,bin,hex}
+  test    <app>                      host unit tests of an app (tests/, GoogleTest, CTest)
+  flash   <app> [Debug|Release] [st-flash|openocd|pyocd|probe-rs]   (default st-flash)
+  example <example> [board]          examples/freertos/<example> -> $FREERTOS_OUT/examples/<example>/<board>/
+                                     (board default: the example's first target; qemu-* examples: mps2-an385)
+  run     <example|dir>              build a qemu example/app and run it in qemu; passes on "RESULT: PASS" + exit 0
+  qemu    <elf> [timeout-s]          run any mps2-an385 ELF in qemu (console on stdout, semihosting exit code)
+  examples list|build|test [ex...]   all examples: qemu ones are built and run, board ones built for every target
+  new     <kind> <name> [--dir D]    new app from templates/<kind> (default dir: apps/); @NAME@ and __name__ filled in
+  templates list|test [kind...]      the templates; test = instantiate each in a temp dir, build and run/test it
+  test    [--all]                    tests/test_smoke.sh; --all also examples test, templates test, app host tests
+  monitor [port] [baud]              serial console (default /dev/ttyUSB0 115200)
+  where                              key paths: ID root, toolchain, build output, apps, examples
+  help                               this text (also -h, --help)
+
+<app> is a folder name under apps/ or a path. Exit status: 0 ok, 1 failure, 2 usage error.
+
+environment:
+  FREERTOS_OUT  build output base (default $BOX_OUT/<this ID path>/build; ROOT/build standalone or with BOX_INTEGRATION=0)
+  JOBS          parallel build jobs (default: nproc)
+  QEMU_TIMEOUT  seconds before a qemu run is stopped (default 60)
+
+examples:
+  scripts/app bootstrap && scripts/app doctor
+  scripts/app run qemu-queue-pipeline
+  scripts/app new qemu-app myapp && scripts/app run apps/myapp
+  scripts/app build freertos-blinky-f411 Release
+  scripts/app flash freertos-blinky-f411 Debug openocd
+  scripts/app example blink
+  scripts/app test freertos-blinky-f411
+EOF
+}
+
+die() { echo "app: $*" >&2; exit 1; }
+
+# Usage error: short message + pointer to the help, exit 2.
+die_usage() {
+  echo "app: $*" >&2
+  echo "run 'scripts/app help' for the commands" >&2
+  exit 2
+}
+
+# Folder names in a dir (no files), space separated, for "have: ..." hints.
+list_dirs() {
+  local entry
+  for entry in "$1"/*/; do
+    [[ -d "$entry" ]] && printf '%s ' "$(basename "$entry")"
+  done
+  return 0
+}
+
+# Absolute dir of an app given by name (apps/<name>) or path.
+app_dir() {
+  local app="${1:-}"
+  [[ -n "$app" ]] || die_usage "give an app (have: $(list_dirs "$ROOT/apps"))"
+  if [[ -d "$app" ]]; then
+    (cd -P "$app" && pwd -P)
+  elif [[ -d "$ROOT/apps/$app" ]]; then
+    echo "$ROOT/apps/$app"
+  else
+    die "no app '$app' (have: $(list_dirs "$ROOT/apps"))"
+  fi
+}
+
+# Build dir of an app for a profile (Debug -> cmake-build-debug, as CLion names it).
+build_dir() {
+  echo "$OUT/apps/$(basename "$1")/cmake-build-$(tr '[:upper:]' '[:lower:]' <<<"$2")"
+}
+
+# Profile argument: Debug or Release (usage error otherwise).
+require_profile() {
+  case "$1" in Debug | Release) ;; *) die_usage "profile must be Debug or Release, got '$1'" ;; esac
+}
+
+# List <dir>/<name>.{bin,elf,hex} that exist; fail when there are none.
+images() {
+  local dir="$1" name="$2" image found=0
+  for image in "$dir/$name".{bin,elf,hex}; do   # sorted, as ls listed them
+    [[ -f "$image" ]] && echo "$image" && found=1
+  done
+  ((found)) || die "build produced no image in $dir"
+}
+
+# First entry of `targets = [...]` in a toml file (example.toml / template.toml), empty if none.
+first_target() {
+  [[ -f "$1" ]] || return 0
+  sed -n 's/^targets *= *\[ *"\([^"]*\)".*/\1/p' "$1" | head -1
+}
+# All targets of a toml file, one per line.
+all_targets() {
+  [[ -f "$1" ]] || return 0
+  sed -n 's/^targets *= *\[\(.*\)\].*/\1/p' "$1" | tr ',' '\n' | tr -d ' "' | sed '/^$/d'
+}
+
+# Configure + build a CMake firmware project for a board into a dir (generic flow: the project sets its toolchain).
+build_project() { # src build-dir board
+  need_env
+  # shellcheck disable=SC2046  # fresh_if_moved prints nothing or one word (--fresh)
+  cmake $(fresh_if_moved "$1" "$2") -S "$1" -B "$2" -G Ninja -DBOARD="$3" >/dev/null
+  cmake --build "$2" -j "$JOBS"
+}
+
+# "--fresh" when build-dir was configured from another source dir (same app name elsewhere): cmake refuses otherwise.
+fresh_if_moved() { # src build-dir
+  local cache="$2/CMakeCache.txt" home
+  [[ -f "$cache" ]] || return 0
+  home="$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$cache")"
+  [[ "$home" == "$(cd -P "$1" && pwd -P)" ]] || echo --fresh
+}
+
+cmd_build() {
+  local dir profile="${2:-Debug}" build
+  dir="$(app_dir "${1:-}")"
+  require_profile "$profile"
+  need_env
+  build="$(build_dir "$dir" "$profile")"
+  if [[ -f "$dir/cmake/arm-none-eabi.cmake" ]]; then   # CLion-style app (freertos-blinky-f411)
+    cmake -S "$dir" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE="$profile" -DCMAKE_TOOLCHAIN_FILE="$dir/cmake/arm-none-eabi.cmake" \
+      -DCUBE="$STM32_CUBE_F4" -DFREERTOS_KERNEL="$FREERTOS_KERNEL" >/dev/null
+    cmake --build "$build" -j "$JOBS"
+  else                                                 # template-style app: BOARD from template.toml or the CMake default
+    local board; board="$(first_target "$dir/template.toml")"
+    # shellcheck disable=SC2046  # fresh_if_moved prints nothing or one word (--fresh)
+    cmake $(fresh_if_moved "$dir" "$build") -S "$dir" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE="$profile" ${board:+-DBOARD="$board"} >/dev/null
+    cmake --build "$build" -j "$JOBS"
+  fi
+  images "$build" "$(basename "$dir")"
+}
+
+cmd_test() {
+  local dir build host_bin
+  dir="$(app_dir "${1:-}")"
+  need_env
+  build="$(build_dir "$dir" host-tests)"
+  host_bin="$MCU_HOST/buildtools/sysroots/x86_64-pokysdk-linux/usr/bin"
+  local src="$dir"
+  [[ -f "$dir/tests/CMakeLists.txt" && ! -f "$dir/cmake/arm-none-eabi.cmake" ]] && src="$dir/tests"   # template-style
+  # shellcheck disable=SC2046  # fresh_if_moved prints nothing or one word (--fresh)
+  cmake $(fresh_if_moved "$src" "$build") -S "$src" -B "$build" -G Ninja -DMCU_HOST_TESTS=ON -DCMAKE_C_COMPILER="$host_bin/gcc" -DCMAKE_CXX_COMPILER="$host_bin/g++" >/dev/null
+  cmake --build "$build" -j "$JOBS" && ctest --test-dir "$build" --output-on-failure -j "$JOBS"
+}
+
+cmd_flash() {
+  local dir name build profile="${2:-Debug}" probe="${3:-st-flash}"
+  dir="$(app_dir "${1:-}")"
+  name="$(basename "$dir")"
+  require_profile "$profile"
+  need_env
+  build="$(build_dir "$dir" "$profile")"
+  [[ -f "$build/$name.bin" ]] || die "not built: app build $name $profile"
+  case "$probe" in
+    st-flash) st-flash --reset write "$build/$name.bin" 0x08000000 ;;
+    openocd) openocd -f interface/stlink.cfg -f target/stm32f4x.cfg -c "program $build/$name.elf verify reset exit" ;;
+    pyocd) pyocd flash -t stm32f411ceux "$build/$name.elf" ;;
+    probe-rs) probe-rs download --chip STM32F411CEUx "$build/$name.elf" && probe-rs reset --chip STM32F411CEUx ;;
+    *) die_usage "probe must be st-flash|openocd|pyocd|probe-rs" ;;
+  esac
+}
+
+cmd_example() {
+  local example="${1:-}" board="${2:-}" build
+  [[ -n "$example" ]] || die_usage "give an example (have: $(list_dirs "$EXAMPLES"))"
+  [[ -d "$EXAMPLES/$example" ]] || die "no example '$example' (have: $(list_dirs "$EXAMPLES"))"
+  [[ -n "$board" ]] || board="$(first_target "$EXAMPLES/$example/example.toml")"
+  board="${board:-blackpill-f411}"
+  build="$OUT/examples/$example/$board"
+  build_project "$EXAMPLES/$example" "$build" "$board"
+  images "$build" "$example"
+}
+
+# Run an mps2-an385 ELF in qemu: console on stdout, exit code from semihosting (0 pass, 1 fail), 124 on timeout.
+qemu_run() { # elf [timeout]
+  need_env
+  timeout --foreground -k 5 "${2:-$QEMU_TIMEOUT}" qemu-system-arm -M mps2-an385 -cpu cortex-m3 -nographic -monitor none \
+    -serial stdio -semihosting-config enable=on,target=native -kernel "$1"
+}
+
+cmd_qemu() {
+  [[ -n "${1:-}" && -f "${1:-}" ]] || die_usage "give an ELF built for mps2-an385"
+  qemu_run "$1" "${2:-}"
+}
+
+# qemu run with the self-test protocol: pass = exit 0 and a "RESULT: PASS" line. Output also goes to <log>.
+qemu_check() { # elf log
+  local rc=0
+  qemu_run "$1" </dev/null 2>&1 | tee "$2" || rc=$?
+  [[ $rc -eq 0 ]] && grep -q '^RESULT: PASS' "$2"
+}
+
+# Directory of a qemu project given as an example name or a path; prints "<dir> <build-dir> <name>".
+project_of() {
+  local arg="$1" dir
+  if [[ -d "$EXAMPLES/$arg" ]]; then
+    printf '%s %s %s\n' "$EXAMPLES/$arg" "$OUT/examples/$arg/mps2-an385" "$arg"
+  elif [[ -d "$arg" ]]; then
+    dir="$(cd -P "$arg" && pwd -P)"
+    printf '%s %s %s\n' "$dir" "$OUT/apps/$(basename "$dir")/qemu" "$(basename "$dir")"
+  elif [[ -d "$ROOT/apps/$arg" ]]; then
+    printf '%s %s %s\n' "$ROOT/apps/$arg" "$OUT/apps/$arg/qemu" "$arg"
+  else
+    die "no example or app '$arg' (examples: $(list_dirs "$EXAMPLES"))"
+  fi
+}
+
+cmd_run() {
+  [[ -n "${1:-}" ]] || die_usage "give a qemu example (qemu-*) or an app dir"
+  local dir build name
+  read -r dir build name <<<"$(project_of "$1")"
+  build_project "$dir" "$build" mps2-an385
+  mkdir -p "$build"
+  qemu_check "$build/$name.elf" "$build/qemu.log"
+}
+
+cmd_examples() {
+  local sub="${1:-list}" ex t pass=0 fail=0 failed=() list=()
+  shift || true
+  case "$sub" in list | build | test) ;; *) die_usage "examples list|build|test [ex...]" ;; esac
+  if [[ $# -gt 0 ]]; then list=("$@"); else
+    for ex in "$EXAMPLES"/*/; do list+=("$(basename "$ex")"); done
+  fi
+  if [[ $sub == list ]]; then
+    for ex in "${list[@]}"; do
+      printf '%-22s %-40s %s\n' "$ex" "$(all_targets "$EXAMPLES/$ex/example.toml" | paste -sd, -)" \
+        "$(sed -n 's/^description *= *"\(.*\)"/\1/p' "$EXAMPLES/$ex/example.toml" | cut -c1-70)"
+    done
+    return 0
+  fi
+  need_env
+  for ex in "${list[@]}"; do
+    [[ -d "$EXAMPLES/$ex" ]] || die "no example '$ex'"
+    while read -r t; do
+      local b="$OUT/examples/$ex/$t" ok=1
+      if [[ $t != mps2-an385 && ! -d "${STM32_CUBE_F4:-/nonexistent}/Drivers" ]]; then
+        echo "SKIP $ex [$t]: STM32Cube packs not installed (scripts/app setup install stm32)"; continue
+      fi
+      mkdir -p "$b"
+      build_project "$EXAMPLES/$ex" "$b" "$t" >"$b/build.log" 2>&1 || ok=0
+      if ((ok)) && [[ $sub == test && $t == mps2-an385 ]]; then
+        qemu_check "$b/$ex.elf" "$b/qemu.log" >/dev/null || ok=0
+        if ((ok)) && [[ -f "$EXAMPLES/$ex/test.sh" ]]; then bash "$EXAMPLES/$ex/test.sh" "$b/$ex.elf" >"$b/test.log" 2>&1 || ok=0; fi
+      fi
+      if ((ok)); then
+        pass=$((pass + 1)); printf 'ok   %-22s %-16s %s\n' "$ex" "$t" "$( [[ $sub == test && $t == mps2-an385 ]] && grep -m1 '^RESULT' "$b/qemu.log" || echo built)"
+      else
+        fail=$((fail + 1)); failed+=("${ex}[$t]"); printf 'FAIL %-22s %-16s see %s\n' "$ex" "$t" "$b"
+      fi
+    done < <(all_targets "$EXAMPLES/$ex/example.toml")
+  done
+  echo "examples $sub: $pass ok, $fail failed${failed[*]:+ (${failed[*]})}"
+  [[ $fail -eq 0 ]]
+}
+
+# Copy templates/<kind> to <dest>, filling @NAME@ in contents and __name__ in file names.
+instantiate() { # kind name dest
+  local kind="$1" name="$2" dest="$3" f rel
+  [[ -d "$ROOT/templates/$kind" ]] || die "no template '$kind' (have: $(list_dirs "$ROOT/templates"))"
+  [[ ! -e "$dest" ]] || die "$dest exists; not overwriting"
+  mkdir -p "$dest"
+  while IFS= read -r -d '' f; do
+    rel="${f#"$ROOT/templates/$kind"/}"
+    rel="${rel//__name__/$name}"
+    mkdir -p "$dest/$(dirname "$rel")"
+    sed "s/@NAME@/$name/g" "$f" >"$dest/$rel"
+    [[ -x "$f" ]] && chmod +x "$dest/$rel"
+  done < <(find "$ROOT/templates/$kind" -type f -print0)
+  echo "created $dest from templates/$kind"
+}
+
+cmd_new() {
+  local kind="${1:-}" name="${2:-}" dir="$ROOT/apps"
+  [[ -n "$kind" && -n "$name" ]] || die_usage "new <kind> <name> [--dir D] (kinds: $(list_dirs "$ROOT/templates"))"
+  shift 2
+  while [[ $# -gt 0 ]]; do
+    case "$1" in --dir) dir="${2:?--dir needs a value}"; shift 2 ;; *) die_usage "unknown option '$1'" ;; esac
+  done
+  [[ "$name" =~ ^[A-Za-z][A-Za-z0-9_-]*$ ]] || die_usage "name must be letters, digits, - or _ (got '$name')"
+  instantiate "$kind" "$name" "$dir/$name"
+}
+
+# Check one instantiated template: build for every target, run qemu targets, run host tests if it has tests/.
+check_template_app() { # app-dir name
+  local dir="$1" name="$2" t ok=0 b
+  while read -r t; do
+    b="$OUT/templates/$name/$t"
+    if [[ $t != mps2-an385 && ! -d "${STM32_CUBE_F4:-/nonexistent}/Drivers" ]]; then
+      echo "  skip $t: STM32Cube packs not installed"; continue
+    fi
+    build_project "$dir" "$b" "$t" >"$OUT/templates/$name.$t.log" 2>&1 || { echo "  build $t failed ($OUT/templates/$name.$t.log)"; ok=1; continue; }
+    if [[ $t == mps2-an385 ]]; then qemu_check "$b/$name.elf" "$b/qemu.log" >/dev/null || { echo "  qemu run failed ($b/qemu.log)"; ok=1; }; fi
+  done < <(all_targets "$dir/template.toml")
+  if [[ -f "$dir/tests/CMakeLists.txt" ]]; then
+    local host_bin="$MCU_HOST/buildtools/sysroots/x86_64-pokysdk-linux/usr/bin" hb="$OUT/templates/$name/host-tests"
+    # shellcheck disable=SC2046  # fresh_if_moved prints nothing or one word (--fresh)
+    { cmake $(fresh_if_moved "$dir/tests" "$hb") -S "$dir/tests" -B "$hb" -G Ninja -DCMAKE_C_COMPILER="$host_bin/gcc" -DCMAKE_CXX_COMPILER="$host_bin/g++" &&
+      cmake --build "$hb" -j "$JOBS" && ctest --test-dir "$hb" --output-on-failure; } >"$OUT/templates/$name.host.log" 2>&1 ||
+      { echo "  host tests failed ($OUT/templates/$name.host.log)"; ok=1; }
+  fi
+  return $ok
+}
+
+cmd_templates() {
+  local sub="${1:-list}" k list=() pass=0 fail=0 tmp
+  shift || true
+  if [[ $# -gt 0 ]]; then list=("$@"); else for k in "$ROOT/templates"/*/; do list+=("$(basename "$k")"); done; fi
+  case "$sub" in
+    list)
+      for k in "${list[@]}"; do
+        printf '%-20s %-34s %s\n' "$k" "$(all_targets "$ROOT/templates/$k/template.toml" | paste -sd, -)" \
+          "$(sed -n 's/^description *= *"\(.*\)"/\1/p' "$ROOT/templates/$k/template.toml" | cut -c1-70)"
+      done ;;
+    test)
+      need_env
+      mkdir -p "$OUT/templates"
+      tmp="$(mktemp -d "$OUT/templates/new.XXXXXX")"
+      for k in "${list[@]}"; do
+        local n="chk_${k//-/_}"
+        if instantiate "$k" "$n" "$tmp/$n" >/dev/null && check_template_app "$tmp/$n" "$n"; then
+          pass=$((pass + 1)); echo "ok   template $k"
+        else
+          fail=$((fail + 1)); echo "FAIL template $k"
+        fi
+      done
+      echo "templates test: $pass ok, $fail failed (instances in $tmp)"
+      [[ $fail -eq 0 ]] ;;
+    *) die_usage "templates list|test [kind...]" ;;
+  esac
+}
+
+cmd_doctor() {
+  local rc=0
+  echo "-- pinned components (scripts/setup check)"
+  "$ROOT/scripts/setup" check core || rc=1
+  "$ROOT/scripts/setup" check stm32 flash | sed 's/^missing /warn     /; s/^differs /warn     /' || true
+  echo "-- tools"
+  if [[ -f "$ROOT/toolchain/host/buildtools/environment-setup-x86_64-pokysdk-linux" ]]; then
+    need_env
+    local t
+    for t in arm-none-eabi-gcc cmake ninja qemu-system-arm gcc; do
+      if command -v "$t" >/dev/null 2>&1; then printf 'ok       %-18s %s\n' "$t" "$("$t" --version 2>&1 | head -1)"
+      else printf 'MISSING  %s\n' "$t"; rc=1; fi
+    done
+    for t in st-flash openocd probe-rs pyocd; do
+      command -v "$t" >/dev/null 2>&1 && printf 'ok       %-18s (flash)\n' "$t" || printf 'warn     %-18s not installed (flash only; no board needed for the tests)\n' "$t"
+    done
+  else
+    echo "MISSING  host layer (scripts/app bootstrap)"; rc=1
+  fi
+  [[ $rc -eq 0 ]] && echo "doctor: ok" || echo "doctor: problems above"
+  return $rc
+}
+
+cmd_update() {
+  case "${1:-}" in
+    --check) "$ROOT/scripts/setup" latest "${@:2}" ;;
+    "") cat <<'EOF'
+Pins live in config/pins.tsv. To move a component to a new version: put the new version, sha256 (from the
+publisher's checksum file) or git commit in its row, move the old install aside (scripts/app clean is not
+needed: rename it), then scripts/setup install <name> and scripts/app test --all.
+`scripts/app update --check` lists the newest upstream tags.
+EOF
+      ;;
+    *) die_usage "update [--check [name...]]" ;;
+  esac
+}
+
+cmd_selftest() {
+  local rc=0
+  bash "$ROOT/tests/test_smoke.sh" || rc=1
+  if [[ "${1:-}" == --all ]]; then
+    cmd_examples test || rc=1
+    cmd_templates test || rc=1
+    cmd_test freertos-blinky-f411 || rc=1
+  fi
+  return $rc
+}
+
+cmd_monitor() {
+  need_env
+  exec python -m serial.tools.miniterm "${1:-/dev/ttyUSB0}" "${2:-115200}"
+}
+
+# Key paths of this ID (read-only).
+cmd_where() {
+  printf '%-12s %s\n' root "$ROOT" toolchain "$ROOT/toolchain/freertos" kernel "$ROOT/toolchain/freertos/FreeRTOS-Kernel" \
+    output "$OUT" apps "$ROOT/apps" examples "$EXAMPLES" templates "$ROOT/templates" pins "$ROOT/config/pins.tsv" \
+    cache "${SETUP_CACHE:-$ROOT/cache/downloads}"
+}
+
+command="${1:-}"
+shift || true
+case "$command" in
+  bootstrap | install) exec "$ROOT/scripts/setup" install core ;;
+  setup) exec "$ROOT/scripts/setup" "$@" ;;
+  doctor) cmd_doctor ;;
+  update) cmd_update "$@" ;;
+  build) cmd_build "$@" ;;
+  test) if [[ "${1:-}" == --all || $# -eq 0 ]]; then cmd_selftest "$@"; else cmd_test "$@"; fi ;;
+  flash) cmd_flash "$@" ;;
+  example) cmd_example "$@" ;;
+  run) cmd_run "$@" ;;
+  qemu) cmd_qemu "$@" ;;
+  examples) cmd_examples "$@" ;;
+  new) cmd_new "$@" ;;
+  templates) cmd_templates "$@" ;;
+  monitor) cmd_monitor "$@" ;;
+  where) cmd_where ;;
+  -h | --help | help | "") usage ;;
+  *) die_usage "unknown command '$command'" ;;
+esac

@@ -1,0 +1,1 @@
+#define configCOMMAND_INT_MAX_OUTPUT_SIZE 256

@@ -1,0 +1,4 @@
+name        = "stm32-app"
+description = "FreeRTOS app for the STM32 boards (BlackPill F411 default, WeAct G431, mini H743, BluePill F103): LED + log tasks"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+checks      = ["build"]          # what `scripts/app templates test` does with an instance

@@ -1,0 +1,7 @@
+name        = "timer"
+sdk         = "freertos"
+description = "TIM2 update interrupt every 100 ms notifies a worker task (hardware timer ISR -> task)"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "On-board LED; USB-UART on PA9/PA10 for the log"
+features    = ["freertos", "tim", "nvic", "task-notification"]
+status      = "builds; untested on hardware"

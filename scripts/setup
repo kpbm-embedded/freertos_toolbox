@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+# setup - install the pinned, checksum-verified components of this ID (config/pins.tsv) into toolchain/.
+#
+# Every archive is checked against the sha256 in pins.tsv before it is unpacked; every git checkout is fetched at the
+# pinned commit and compared with it. Installed components are never overwritten: a destination that exists is
+# checked and left alone. Downloads are kept in the cache (cache/downloads, or $SETUP_CACHE) and reused.
+# Run `scripts/setup help` for usage.
+set -euo pipefail
+ROOT="$(cd -P "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd -P)"
+TC="$ROOT/toolchain"
+PINS="${SETUP_PINS:-$ROOT/config/pins.tsv}"
+CACHE="${SETUP_CACHE:-$ROOT/cache/downloads}"
+DRY=0
+
+usage() {
+  cat <<'EOF'
+setup - pinned, checksum-verified components (config/pins.tsv) into toolchain/
+
+usage: scripts/setup <command> [group|name ...] [--dry-run]
+
+commands:
+  list                       every pin: name, version, group, installed state
+  check [sel...]             installed components match their pins (exit 1 if a selected one is missing/different)
+  install [sel...]           download (cache), verify sha256 / git commit, unpack; default selection: core
+  fetch [sel...]             only download and verify into the cache
+  latest [sel...]            newest upstream tag of git/GitHub pins (network; changes nothing)
+  help                       this text
+
+A selection is a group (core, stm32, flash, all) or a component name. Exit: 0 ok, 1 failure, 2 usage error.
+environment: SETUP_CACHE (download cache, default cache/downloads), SETUP_PINS (pins file)
+EOF
+}
+
+say() { printf '%s\n' "$*"; }
+die() { printf 'setup: %s\n' "$*" >&2; exit 1; }
+run() { if ((DRY)); then say "+ $*"; else "$@"; fi; }
+
+# pins.tsv: name version group kind digest url dest probe extra (tab separated, # comments)
+read_pins() { grep -v '^[[:space:]]*#' "$PINS" | grep -v '^[[:space:]]*$'; }
+extra_get() { # extra key -> values (one per line)
+  local IFS=';' kv
+  for kv in $1; do [[ ${kv%%=*} == "$2" ]] && printf '%s\n' "${kv#*=}"; done
+  return 0
+}
+selected() { # name group sel... -> 0 if selected
+  local name="$1" group="$2" s; shift 2
+  for s in "$@"; do [[ $s == all || $s == "$name" || $s == "$group" ]] && return 0; done
+  return 1
+}
+
+sha256_of() { sha256sum "$1" | cut -d' ' -f1; }
+downloader() {
+  if command -v curl >/dev/null 2>&1; then curl -fL --retry 3 --connect-timeout 20 -m 1800 -o "$2" "$1"
+  elif command -v wget >/dev/null 2>&1; then wget -q -T 60 -O "$2" "$1"
+  else die "need curl or wget"; fi
+}
+fetch_file() { # url digest -> path in cache (verified)
+  local url="$1" want="${2#sha256:}" f
+  f="$CACHE/$(basename "${url%%\?*}")"
+  if [[ -f $f && $(sha256_of "$f") == "$want" ]]; then printf '%s\n' "$f"; return 0; fi
+  ((DRY)) && { say "+ download $url -> $f (sha256 $want)" >&2; printf '%s\n' "$f"; return 0; }
+  mkdir -p "$CACHE"
+  say "  download $url" >&2
+  downloader "$url" "$f.part" >&2 || { mv -f "$f.part" "$f.failed" 2>/dev/null; die "download failed: $url"; }
+  local got; got="$(sha256_of "$f.part")"
+  [[ $got == "$want" ]] || { mv -f "$f.part" "$f.badsum"; die "sha256 mismatch for $url: got $got, pinned $want (kept as $f.badsum)"; }
+  mv -f "$f.part" "$f"
+  printf '%s\n' "$f"
+}
+
+host_python() { # a python3 for zip extraction (buildtools first, then PATH)
+  local p="$TC/host/buildtools/sysroots/x86_64-pokysdk-linux/usr/bin/python3"
+  [[ -x $p ]] && { printf '%s\n' "$p"; return; }
+  command -v python3 || die "need python3 (install the buildtools pin first)"
+}
+
+make_links() { # extra -> create link=<path>=<target> entries that do not exist yet
+  local l path target
+  while IFS= read -r l; do
+    [[ -n $l ]] || continue
+    path="$TC/${l%%=*}"; target="${l#*=}"
+    if [[ -L $path || -e $path ]]; then continue; fi
+    run mkdir -p "$(dirname "$path")"
+    run ln -s "$target" "$path"
+  done < <(extra_get "$1" link)
+}
+
+git_cmd() { # git from PATH, else the buildtools one
+  if command -v git >/dev/null 2>&1; then git "$@"
+  else "$TC/host/buildtools/sysroots/x86_64-pokysdk-linux/usr/bin/git" "$@"; fi
+}
+
+state_of() { # kind digest dest probe -> ok | missing | differs:<detail>
+  local kind="$1" digest="$2" dest="$TC/$3" probe="$TC/$4" head
+  [[ -e $probe ]] || { echo missing; return; }
+  case "$kind" in
+    git)
+      head="$(git_cmd -C "$dest" rev-parse HEAD 2>/dev/null || echo none)"
+      [[ $head == "${digest#git:}" ]] && echo ok || echo "differs:HEAD ${head:0:12}" ;;
+    file)
+      [[ $(sha256_of "$dest") == "${digest#sha256:}" ]] && echo ok || echo "differs:sha256" ;;
+    *) echo ok ;;
+  esac
+}
+
+install_one() { # name version kind digest url dest probe extra
+  local name="$1" ver="$2" kind="$3" digest="$4" url="$5" dest="$TC/$6" probe="$7" extra="$8" st f strip
+  st="$(state_of "$kind" "$digest" "$6" "$probe")"
+  case "$st" in
+    ok) say "ok       $name $ver"; make_links "$extra"; return 0 ;;
+    differs:*) say "differs  $name $ver (${st#differs:}); left as is"; return 1 ;;
+  esac
+  [[ ! -e $dest || $kind == file ]] || die "$dest exists but $probe is missing: move it away first"
+  say "install  $name $ver -> toolchain/$6"
+  case "$kind" in
+    tar)
+      f="$(fetch_file "$url" "$digest")"
+      strip="$(extra_get "$extra" strip)"; strip="${strip:-1}"
+      run mkdir -p "$dest.part"
+      run tar -xf "$f" -C "$dest.part" --strip-components="$strip"
+      run mv -T "$dest.part" "$dest" ;;
+    zip1)
+      f="$(fetch_file "$url" "$digest")"
+      run mkdir -p "$dest.part"
+      if ((DRY)); then say "+ unzip $f -> $dest"; else
+        "$(host_python)" -I -c 'import zipfile,sys;zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$f" "$dest.part"
+        chmod +x "$dest.part"/*
+      fi
+      run mv -T "$dest.part" "$dest" ;;
+    sh)   # Yocto buildtools installer: bakes its target path in, so it installs straight into dest
+      f="$(fetch_file "$url" "$digest")"
+      run sh "$f" -y -d "$dest" >/dev/null ;;
+    file)
+      f="$(fetch_file "$url" "$digest")"
+      run mkdir -p "$(dirname "$dest")"
+      run cp "$f" "$dest" ;;
+    git)
+      local commit="${digest#git:}" sub sparse
+      run mkdir -p "$dest"
+      run git_cmd -C "$dest" init -q
+      run git_cmd -C "$dest" remote add origin "$url"
+      sparse="$(extra_get "$extra" sparse)"
+      if [[ -n $sparse ]]; then run git_cmd -C "$dest" sparse-checkout set ${sparse//,/ }; fi
+      run git_cmd -C "$dest" fetch -q --depth 1 --filter=blob:none origin "$commit"
+      run git_cmd -C "$dest" checkout -q FETCH_HEAD
+      sub="$(extra_get "$extra" sub)"
+      if [[ -n $sub ]]; then run git_cmd -C "$dest" submodule update -q --init --depth 1 -- ${sub//,/ }; fi
+      if ! ((DRY)); then
+        [[ $(git_cmd -C "$dest" rev-parse HEAD) == "$commit" ]] || die "$name: checked out commit is not the pinned $commit"
+      fi ;;
+    *) die "unknown kind $kind for $name" ;;
+  esac
+  make_links "$extra"
+  ((DRY)) || [[ -e $TC/$probe ]] || die "$name installed but toolchain/$probe is missing"
+}
+
+cmd_list() {
+  printf '%-22s %-14s %-6s %-5s %s\n' NAME VERSION GROUP KIND STATE
+  local name ver group kind digest url dest probe extra
+  while IFS=$'\t' read -r name ver group kind digest url dest probe extra; do
+    printf '%-22s %-14s %-6s %-5s %s\n' "$name" "$ver" "$group" "$kind" "$(state_of "$kind" "$digest" "$dest" "$probe")"
+  done < <(read_pins)
+}
+
+cmd_check() {
+  local rc=0 n=0 name ver group kind digest url dest probe extra st
+  while IFS=$'\t' read -r name ver group kind digest url dest probe extra; do
+    selected "$name" "$group" "$@" || continue
+    n=$((n + 1)); st="$(state_of "$kind" "$digest" "$dest" "$probe")"
+    printf '%-8s %s %s\n' "${st%%:*}" "$name" "$ver"
+    [[ $st == ok ]] || rc=1
+  done < <(read_pins)
+  ((n)) || { echo "setup: nothing matches '$*'" >&2; return 2; }
+  return $rc
+}
+
+cmd_install() {
+  local rc=0 n=0 name ver group kind digest url dest probe extra
+  while IFS=$'\t' read -r name ver group kind digest url dest probe extra; do
+    selected "$name" "$group" "$@" || continue
+    n=$((n + 1))
+    install_one "$name" "$ver" "$kind" "$digest" "$url" "$dest" "$probe" "${extra:-}" || rc=1
+  done < <(read_pins)
+  ((n)) || { echo "setup: nothing matches '$*'" >&2; return 2; }
+  return $rc
+}
+
+cmd_fetch() {
+  local name ver group kind digest url dest probe extra
+  while IFS=$'\t' read -r name ver group kind digest url dest probe extra; do
+    selected "$name" "$group" "$@" || continue
+    case "$kind" in git) say "skip     $name (git: fetched on install)" ;; *) fetch_file "$url" "$digest" >/dev/null && say "cached   $name $ver" ;; esac
+  done < <(read_pins)
+}
+
+cmd_latest() {
+  local name ver group kind digest url dest probe extra repo tag
+  while IFS=$'\t' read -r name ver group kind digest url dest probe extra; do
+    selected "$name" "$group" "$@" || continue
+    repo=""
+    case "$url" in
+      https://github.com/*) repo="https://github.com/$(cut -d/ -f4-5 <<<"$url")" ;;
+    esac
+    if [[ -z $repo ]]; then printf '%-22s %-14s %s\n' "$name" "$ver" "(no tag feed; check upstream by hand)"; continue; fi
+    tag="$(git_cmd ls-remote --tags --refs "$repo" 2>/dev/null | sed 's#.*refs/tags/##' | grep -E "$(extra_get "$extra" tags || true)" | sort -V | tail -1 || true)"
+    printf '%-22s %-14s latest %s\n' "$name" "$ver" "${tag:-?}"
+  done < <(read_pins)
+}
+
+args=()
+for a in "$@"; do case "$a" in -n | --dry-run) DRY=1 ;; *) args+=("$a") ;; esac; done
+set -- "${args[@]+"${args[@]}"}"
+cmd="${1:-help}"; shift || true
+[[ -f $PINS ]] || die "no pins file $PINS"
+case "$cmd" in
+  list) cmd_list ;;
+  check) cmd_check "${@:-core}" ;;
+  install) cmd_install "${@:-core}" ;;
+  fetch) cmd_fetch "${@:-core}" ;;
+  latest) cmd_latest "${@:-all}" ;;
+  help | -h | --help) usage ;;
+  *) echo "setup: unknown command '$cmd' (scripts/setup help)" >&2; exit 2 ;;
+esac

@@ -1,0 +1,7 @@
+name        = "qemu-event-sync"
+sdk         = "freertos"
+description = "Event groups: three tasks meet at a barrier (xEventGroupSync) for 5 rounds; wait-any/wait-all with timeout; bits set from an ISR"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu-system-arm -M mps2-an385 (Cortex-M3), console on UART0, exit code via semihosting"
+features    = ["freertos", "event-groups", "isr", "qemu"]
+status      = "tested on qemu (scripts/app examples test); not run on a board"

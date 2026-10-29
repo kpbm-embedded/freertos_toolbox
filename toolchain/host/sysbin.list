@@ -1,0 +1,11 @@
+# OS base utilities allowed in strict mode (`mcu selfcheck`).
+# Everything else a build or flash needs must come from mcu/ (host/ or the SDK's own dirs).
+# These are coreutils / bash / sed / grep / gawk / findutils / tar / gzip / xz / util-linux basics.
+bash sh env
+cat cp mv ln ls mkdir rm rmdir touch chmod chown install mktemp stat readlink realpath dirname basename
+head tail tr cut sort uniq wc tee paste join split comm fold nl od expand printf echo yes true false test [
+sed grep egrep fgrep awk gawk find xargs diff cmp
+date uname id whoami hostname nproc getconf sleep timeout kill ps
+md5sum sha1sum sha256sum sha512sum base64
+tar gzip gunzip zcat xz unxz bzip2 bunzip2
+which file flock

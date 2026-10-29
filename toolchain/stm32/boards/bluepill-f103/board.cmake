@@ -1,0 +1,15 @@
+# BluePill / BluePill+ STM32F103C8T6. Sources: Zephyr boards/others/stm32_min_dev (blue overlay: LED PC13 active low);
+# 8 MHz HSE -> PLL x9 = 72 MHz (RM0008 / datasheet max). No user button is assumed (BluePill has none; BluePill+ key unverified).
+set(B_FAMILY F1)
+set(B_ID BLUEPILL_F103)
+set(B_DEVICE STM32F103xB)
+set(B_STARTUP stm32f103xb)
+set(B_MCU_FLAGS -mcpu=cortex-m3 -mthumb)
+set(B_HSE_HZ 8000000)
+set(B_FLASH_ORIGIN 0x08000000)
+set(B_FLASH_LEN 64K)
+set(B_RAM_ORIGIN 0x20000000)
+set(B_RAM_LEN 20K)
+set(B_EXTRA_MODULES uart exti)
+set(B_FREERTOS_PORT ARM_CM3)
+set(B_FREERTOS_HEAP 8192)

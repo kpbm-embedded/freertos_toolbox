@@ -1,0 +1,7 @@
+name        = "pwm-fade"
+sdk         = "freertos"
+description = "TIM3_CH1 PWM on PA6 faded by a task with vTaskDelayUntil"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "External LED + resistor from PA6 to GND; USB-UART on PA9/PA10 for the log"
+features    = ["freertos", "tim", "pwm"]
+status      = "builds; untested on hardware"

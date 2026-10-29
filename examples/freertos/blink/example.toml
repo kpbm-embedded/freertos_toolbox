@@ -1,0 +1,7 @@
+name        = "blink"
+sdk         = "freertos"
+description = "LED task with vTaskDelayUntil plus a stack high-water-mark report task"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "On-board LED (F411 PC13, G431 PC6, H743 PE3, F103 PC13); USB-UART on PA9/PA10 for the log"
+features    = ["freertos", "gpio", "tasks", "vTaskDelayUntil"]
+status      = "builds; untested on hardware"

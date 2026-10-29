@@ -1,0 +1,7 @@
+name        = "qemu-message-buffer"
+sdk         = "freertos"
+description = "Message buffers: variable-length messages between tasks, length kept per message, too-small receive buffer handled"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu-system-arm -M mps2-an385 (Cortex-M3), console on UART0, exit code via semihosting"
+features    = ["freertos", "message-buffer", "qemu"]
+status      = "tested on qemu (scripts/app examples test); not run on a board"

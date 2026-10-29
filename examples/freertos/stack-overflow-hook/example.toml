@@ -1,0 +1,7 @@
+name        = "stack-overflow-hook"
+sdk         = "freertos"
+description = "configCHECK_FOR_STACK_OVERFLOW=2 demo: the hook reports the offending task and resets"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "BlackPill F411, WeAct G431, mini H743 or BluePill F103; USB-UART on PA9/PA10 for the log"
+features    = ["freertos", "stack-overflow", "hooks"]
+status      = "builds; untested on hardware"

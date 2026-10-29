@@ -1,0 +1,15 @@
+# WeAct STM32G431CBT6 core board. Sources: Zephyr boards/weact/stm32g431_core/weact_stm32g431_core.dts
+# (led0 PC6 active high, button0 PC13 pull-down active high, clk_hse 8 MHz); WeAct STM32G431CBU6 core board repo/pinout.
+set(B_FAMILY G4)
+set(B_ID WEACT_G431)
+set(B_DEVICE STM32G431xx)
+set(B_STARTUP stm32g431xx)
+set(B_MCU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
+set(B_HSE_HZ 8000000)
+set(B_FLASH_ORIGIN 0x08000000)
+set(B_FLASH_LEN 128K)
+set(B_RAM_ORIGIN 0x20000000)
+set(B_RAM_LEN 32K)
+set(B_EXTRA_MODULES uart exti)
+set(B_FREERTOS_PORT ARM_CM4F)
+set(B_FREERTOS_HEAP 16384)

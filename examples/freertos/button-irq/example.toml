@@ -1,0 +1,7 @@
+name        = "button-irq"
+sdk         = "freertos"
+description = "Button EXTI ISR notifies a task (vTaskNotifyGiveFromISR) that debounces and toggles the LED"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743"]
+hardware    = "User button: BlackPill KEY PA0 (active low); WeAct G431 and mini H743 PC13 (active high); USB-UART on PA9/PA10"
+features    = ["freertos", "gpio", "exti", "task-notification"]
+status      = "builds; untested on hardware"

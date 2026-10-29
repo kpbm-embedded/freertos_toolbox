@@ -1,0 +1,7 @@
+name        = "qemu-stack-overflow"
+sdk         = "freertos"
+description = "Stack overflow detection (configCHECK_FOR_STACK_OVERFLOW 2): a task overruns its stack, the hook names it; high-water marks"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu-system-arm -M mps2-an385 (Cortex-M3), console on UART0, exit code via semihosting"
+features    = ["freertos", "stack-overflow", "debug", "qemu"]
+status      = "tested on qemu (scripts/app examples test); not run on a board"

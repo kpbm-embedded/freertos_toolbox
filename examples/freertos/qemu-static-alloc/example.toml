@@ -1,0 +1,7 @@
+name        = "qemu-static-alloc"
+sdk         = "freertos"
+description = "Static allocation only (configSUPPORT_DYNAMIC_ALLOCATION 0, no heap linked): tasks, queue, mutex, event group, timer, stream buffer"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu-system-arm -M mps2-an385 (Cortex-M3), console on UART0, exit code via semihosting"
+features    = ["freertos", "static-allocation", "qemu"]
+status      = "tested on qemu (scripts/app examples test); not run on a board"

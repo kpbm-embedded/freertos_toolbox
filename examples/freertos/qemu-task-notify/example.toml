@@ -1,0 +1,7 @@
+name        = "qemu-task-notify"
+sdk         = "freertos"
+description = "Direct-to-task notifications: binary/counting semaphore from an ISR, event bits, mailbox with/without overwrite, indexed notifications"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu-system-arm -M mps2-an385 (Cortex-M3), console on UART0, exit code via semihosting"
+features    = ["freertos", "task-notifications", "isr", "qemu"]
+status      = "tested on qemu (scripts/app examples test); not run on a board"

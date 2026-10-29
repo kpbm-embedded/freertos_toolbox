@@ -1,0 +1,25 @@
+id = "32_04"
+name = "freertos"
+kind = "tool"
+status = "active"
+old_paths = []
+tags = []
+
+[backup]
+tier = "critical"
+
+[tool]
+name = "freertos"
+launcher = "app"
+env_var = "BOX_FREERTOS"
+env_path = "toolchain/freertos"
+
+[scripts.app]
+schema = 1
+kind = "launcher"
+path = "scripts/app"
+summary = "bootstrap/doctor, build, test, run on qemu, flash and monitor this ID's FreeRTOS apps, examples and templates with its own pinned toolchain only."
+interpreter = "bash"
+commands = ["bootstrap", "setup", "doctor", "update", "build", "test", "flash", "example", "run", "qemu", "examples", "new", "templates", "monitor", "where", "help"]
+reads = { local = ["FREERTOS_OUT", "JOBS", "QEMU_TIMEOUT", "SETUP_CACHE"], global = ["BOX_OUT", "BOX_V3", "BOX_INTEGRATION"] }
+scope = "global"

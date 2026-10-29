@@ -1,0 +1,48 @@
+{
+  "kind": "cmake",
+  "env_sdk": "freertos",
+  "toolchain": "cmake/arm-none-eabi.cmake",
+  "cmake_project": "freertos-blinky-f411",
+  "target": "freertos-blinky-f411",
+  "elf": "freertos-blinky-f411.elf",
+  "debug": {
+    "label": "OpenOCD + ST-Link",
+    "exe": "../../toolchain/tools/xpack-openocd/bin/openocd",
+    "args": [
+      "-s",
+      "../../toolchain/tools/xpack-openocd/openocd/scripts",
+      "-f",
+      "interface/stlink.cfg",
+      "-f",
+      "target/stm32f4x.cfg",
+      "-c",
+      "gdb port 3333",
+      "-c",
+      "telnet port disabled",
+      "-c",
+      "tcl port disabled"
+    ],
+    "connect": "tcp:localhost:3333",
+    "reset": "monitor reset halt",
+    "check": [
+      "-c",
+      "shutdown"
+    ]
+  },
+  "debug_skip": null,
+  "flash": {
+    "how": "mcu",
+    "sdk": "freertos",
+    "target": "blackpill-f411",
+    "example": "freertos-blinky-f411",
+    "stage": "{gen}"
+  },
+  "monitor": [
+    "freertos"
+  ],
+  "about": "FreeRTOS blinky on STM32F411 (example blinky-f411-freertos)",
+  "sdk": "freertos",
+  "name": "freertos-blinky-f411",
+  "sdk_target": "",
+  "example": ""
+}

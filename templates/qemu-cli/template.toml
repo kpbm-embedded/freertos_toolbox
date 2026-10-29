@@ -1,0 +1,4 @@
+name        = "qemu-cli"
+description = "FreeRTOS+CLI command console on UART0 with a self-test of the registered commands; -DCLI_INTERACTIVE=ON keeps the shell"
+targets     = ["mps2-an385"]
+checks      = ["build", "qemu"]          # what `scripts/app templates test` does with an instance

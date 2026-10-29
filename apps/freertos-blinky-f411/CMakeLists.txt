@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.20)
+# >>> mcu/clion: host unit tests, CMake profile "Host-Tests" (see README.md)
+if(MCU_HOST_TESTS)
+  project(freertos-blinky-f411_host_tests C CXX)
+  enable_testing()
+  add_subdirectory(tests)
+  return()
+endif()
+# <<< mcu/clion
+
+# Firmware: FreeRTOS-Kernel (mcu/freertos) + STM32CubeF4 HAL (mcu/stm32); paths come from the CMake profile.
+if(NOT CMAKE_TOOLCHAIN_FILE)
+  set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/cmake/arm-none-eabi.cmake)
+endif()
+project(freertos-blinky-f411 C ASM)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/stm32f411.cmake)
+set(FREERTOS_KERNEL "" CACHE PATH "FreeRTOS-Kernel checkout")
+set(FRK ${FREERTOS_KERNEL})
+add_library(freertos STATIC ${FRK}/tasks.c ${FRK}/list.c ${FRK}/queue.c ${FRK}/timers.c
+  ${FRK}/portable/GCC/ARM_CM4F/port.c ${FRK}/portable/MemMang/heap_4.c)
+target_include_directories(freertos PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src ${FRK}/include ${FRK}/portable/GCC/ARM_CM4F)
+target_link_libraries(freertos PUBLIC stm32f411_hal)
+add_executable(freertos-blinky-f411 src/main.c)
+target_link_libraries(freertos-blinky-f411 freertos)
+stm32f411_finish(freertos-blinky-f411)

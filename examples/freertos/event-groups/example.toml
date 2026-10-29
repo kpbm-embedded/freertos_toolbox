@@ -1,0 +1,7 @@
+name        = "event-groups"
+sdk         = "freertos"
+description = "Event group: wait for all of three worker bits, clear on exit"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "BlackPill F411, WeAct G431, mini H743 or BluePill F103; USB-UART on PA9/PA10 for the log"
+features    = ["freertos", "event-groups", "synchronisation"]
+status      = "builds; untested on hardware"

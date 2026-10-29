@@ -1,0 +1,3 @@
+# SEGGER J-Link (and clones, VID 1366)
+SUBSYSTEM=="usb", ATTR{idVendor}=="1366", MODE="0666", TAG+="uaccess"
+KERNEL=="ttyACM*", ATTRS{idVendor}=="1366", MODE="0666", TAG+="uaccess"

@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.20)
+# @NAME@: FreeRTOS on qemu mps2-an385 (Cortex-M3). Build + run: scripts/app run <this dir>
+if(NOT DEFINED ENV{FREERTOS_QEMU})
+  message(FATAL_ERROR "source <freertos-box>/toolchain/freertos/env.sh first (scripts/app does it)")
+endif()
+set(CMAKE_TOOLCHAIN_FILE $ENV{FREERTOS_QEMU}/arm-none-eabi.cmake)
+set(BOARD "mps2-an385" CACHE STRING "qemu mps2-an385")
+project(@NAME@ C ASM)
+include($ENV{FREERTOS_QEMU}/freertos_qemu.cmake)
+option(CLI_INTERACTIVE "keep the UART shell after the self-test" OFF)
+add_executable(@NAME@ src/main.c)
+freertos_qemu(@NAME@ CLI DEFINES $<$<BOOL:${CLI_INTERACTIVE}>:CLI_INTERACTIVE>)

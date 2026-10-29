@@ -1,0 +1,7 @@
+name        = "sw-timers"
+sdk         = "freertos"
+description = "Software timers: auto-reload LED, heartbeat and a one-shot armed from a callback"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "BlackPill F411, WeAct G431, mini H743 or BluePill F103; USB-UART on PA9/PA10 for the log"
+features    = ["freertos", "timers", "daemon-task"]
+status      = "builds; untested on hardware"

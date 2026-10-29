@@ -1,0 +1,4 @@
+name        = "qemu-app"
+description = "Smallest FreeRTOS app on qemu: two tasks and a queue, self-checking (RESULT: PASS)"
+targets     = ["mps2-an385"]
+checks      = ["build", "qemu"]          # what `scripts/app templates test` does with an instance

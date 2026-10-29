@@ -1,0 +1,7 @@
+name        = "adc-read"
+sdk         = "freertos"
+description = "ADC1 PA1 sampled by a task; end-of-conversion interrupt notifies it"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "PA1 to a 0-3.3 V source or potentiometer wiper; USB-UART on PA9/PA10"
+features    = ["freertos", "adc", "nvic", "task-notification"]
+status      = "builds; untested on hardware"

@@ -1,0 +1,7 @@
+name        = "qemu-trace-hooks"
+sdk         = "freertos"
+description = "Trace hooks (traceTASK_SWITCHED_IN, traceQUEUE_SEND/RECEIVE) into a ring buffer, plus run-time stats from a hardware timer"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu-system-arm -M mps2-an385 (Cortex-M3), console on UART0, exit code via semihosting"
+features    = ["freertos", "trace", "run-time-stats", "qemu"]
+status      = "tested on qemu (scripts/app examples test); not run on a board"

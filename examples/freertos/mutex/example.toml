@@ -1,0 +1,7 @@
+name        = "mutex"
+sdk         = "freertos"
+description = "Mutex with priority inheritance (LOW/MID/HIGH tasks)"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "BlackPill F411, WeAct G431, mini H743 or BluePill F103; USB-UART on PA9/PA10 for the log"
+features    = ["freertos", "mutex", "priority-inheritance"]
+status      = "builds; untested on hardware"

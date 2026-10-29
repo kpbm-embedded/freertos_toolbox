@@ -1,0 +1,7 @@
+name        = "usb-cdc"
+sdk         = "freertos"
+description = "USB CDC-ACM echo: USB ISR -> stream buffer -> echo task (ST USB Device library, OTG_FS or FSDEV)"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "Board USB connector (PA11 DM / PA12 DP) to a host; optional USB-UART on PA9/PA10 for the byte-count log"
+features    = ["freertos", "usb", "cdc-acm", "stream-buffer", "isr-to-task"]
+status      = "builds; untested on hardware"

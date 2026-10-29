@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.20)
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/../common/arm-none-eabi.cmake)
+project(blinky-f411 C ASM)
+include(${CMAKE_CURRENT_LIST_DIR}/../common/stm32f411.cmake)
+add_executable(blinky-f411 src/main.c)
+target_link_libraries(blinky-f411 stm32f411_hal)
+stm32f411_finish(blinky-f411)

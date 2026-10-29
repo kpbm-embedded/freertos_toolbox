@@ -1,0 +1,4 @@
+name        = "qemu-tickless"
+description = "Low-power skeleton: tickless idle with pre/post-sleep hooks and a periodic job"
+targets     = ["mps2-an385"]
+checks      = ["build", "qemu"]          # what `scripts/app templates test` does with an instance

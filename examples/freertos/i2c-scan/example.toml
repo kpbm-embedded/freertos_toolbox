@@ -1,0 +1,7 @@
+name        = "i2c-scan"
+sdk         = "freertos"
+description = "I2C1 bus scan task (i2cdetect-style table every 5 s)"
+targets     = ["blackpill-f411", "weact-g431", "mini-h743", "bluepill-f103"]
+hardware    = "I2C1 + 4.7k pull-ups: F411/H743 PB8 SCL PB9 SDA; G431 PA15 SCL PB7 SDA; F103 PB6 SCL PB7 SDA; USB-UART on PA9/PA10"
+features    = ["freertos", "i2c"]
+status      = "builds; untested on hardware"

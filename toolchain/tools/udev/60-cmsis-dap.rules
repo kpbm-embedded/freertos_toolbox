@@ -1,0 +1,3 @@
+# CMSIS-DAP / DAPLink (WeAct mini DAPLink etc): hidraw access for logged-in user
+SUBSYSTEM=="usb", ATTR{idVendor}=="0d28", ATTR{idProduct}=="0204", MODE="0666", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0d28", ATTRS{idProduct}=="0204", MODE="0666", TAG+="uaccess"

@@ -1,0 +1,4 @@
+name        = "dual-target"
+description = "One FreeRTOS app for qemu (mps2-an385, develop and test on the PC) and an STM32 board (deploy): a 3-call platform layer"
+targets     = ["mps2-an385", "blackpill-f411"]
+checks      = ["build", "qemu"]          # what `scripts/app templates test` does with an instance

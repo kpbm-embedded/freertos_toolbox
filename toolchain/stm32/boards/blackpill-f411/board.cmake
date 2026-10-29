@@ -1,0 +1,15 @@
+# WeAct BlackPill STM32F411CEU6. Sources: WeAct BlackPill schematic (LED PC13 active low, KEY PA0, 25 MHz HSE);
+# cross-checked with Zephyr boards/weact/blackpill_f411ce/blackpill_f411ce.dts (led PC13 low, button PA0 pull-up, clk_hse 25 MHz).
+set(B_FAMILY F4)
+set(B_ID BLACKPILL_F411)
+set(B_DEVICE STM32F411xE)
+set(B_STARTUP stm32f411xe)
+set(B_MCU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
+set(B_HSE_HZ 25000000)
+set(B_FLASH_ORIGIN 0x08000000)
+set(B_FLASH_LEN 512K)
+set(B_RAM_ORIGIN 0x20000000)
+set(B_RAM_LEN 128K)
+set(B_EXTRA_MODULES uart)
+set(B_FREERTOS_PORT ARM_CM4F)
+set(B_FREERTOS_HEAP 32768)
