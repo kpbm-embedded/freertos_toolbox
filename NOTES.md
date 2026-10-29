@@ -16,7 +16,7 @@
 - 2026_10_25 readability pass 2 (report: 00_09_meta/02_logs/2026_10_25_readability2_embedded_core_report.md): `scripts/app where`; missing example, a profile other than Debug/Release (build and flash; flash did not check it) are usage errors (exit 2). Descriptor commands += test, where. README: `box run freertos ...`, native n/a.
 
 ## 2026-10-29
-- Prepared for GitHub as `freertos-box` (git repo in this folder, `.gitignore` keeps only sources: no toolchains, Cube
+- Prepared for GitHub as `freertos_toolbox` (git repo in this folder, `.gitignore` keeps only sources: no toolchains, Cube
   packs, kernel, qemu, GoogleTest, downloads, build output). Host paths removed from tracked files (READMEs use
   `$FREERTOS_OUT`, env.sh comments are relative, `mcu-project.json` / `.run/Debug.run.xml` relative or `$PROJECT_DIR$`);
   the app's `.idea/cmake.xml` (absolute paths of this machine) is not committed.

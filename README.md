@@ -183,7 +183,7 @@ examples 32 ok + 47 skipped (F1/G4/H7 packs not installed there), templates 13/1
 
 ## Git and a fresh clone
 
-Repo `freertos-box`. Only sources are committed (`.gitignore`): toolchains, Cube packs, the kernel, qemu, GoogleTest,
+Repo `freertos_toolbox`. Only sources are committed (`.gitignore`): toolchains, Cube packs, the kernel, qemu, GoogleTest,
 downloads and build output are not. A clone runs `scripts/app bootstrap` (and `scripts/setup install stm32` for the board
 examples) and gets the same pinned files. CLion's `.idea/cmake.xml` (absolute paths of one machine) is not committed;
 open the app in CLion and set the toolchain environment from `toolchain/freertos/env.sh`. No symlinks into other IDs here.
