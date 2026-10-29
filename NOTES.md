@@ -47,3 +47,10 @@
 - Results: smoke 24/24; examples 77/77 (14 qemu PASS, 63 board builds); templates 11/11 (9 qemu runs, 2 GoogleTest
   suites 4/4 each, 4 boards x 2 STM32 templates + dual-target built); app host tests 3/3; doctor ok; shellcheck clean.
   `scripts/app test --all` 73 s. Nothing ran on hardware.
+- Fresh-clone check (clone on idisk03, `cache/` linked to this one, `BOX_INTEGRATION=0`, output inside the clone):
+  doctor before bootstrap fails as expected; `scripts/app bootstrap` reinstalled the whole core group from the pins
+  (buildtools, cmake, ninja, Arm GNU, kernel, FreeRTOS+CLI, GoogleTest, qemu; 49 s, archives from the cache, kernel
+  fetched from GitHub); `scripts/setup install stm32cube-f4` fetched the F4 pack sparse from GitHub (14 s); doctor ok;
+  `test --all`: smoke 24/24, examples 30 ok (14 qemu + 16 F411 builds) and 47 skipped (F1/G4/H7 packs not installed
+  in the clone), templates 11/11, app host tests 3/3. Not reinstalled in the clone: the F1/G4/H7 Cube packs and the
+  flash group (OpenOCD, probe-rs). Clone moved to the Trash afterwards (logged).
