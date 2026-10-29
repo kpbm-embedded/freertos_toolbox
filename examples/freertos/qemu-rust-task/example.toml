@@ -1,0 +1,7 @@
+name        = "qemu-rust-task"
+sdk         = "freertos"
+description = "A FreeRTOS task written in Rust (via C shims for the kernel macros), statistics over a queue, checked against C"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu-system-arm -M mps2-an385; needs 32_17_embedded_rust (rust-box), skipped (exit 3) without it"
+features    = ["freertos", "rust", "ffi", "qemu"]
+status      = "tested on qemu (scripts/app examples test); not run on a board"

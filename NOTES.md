@@ -54,3 +54,9 @@
   `test --all`: smoke 24/24, examples 30 ok (14 qemu + 16 F411 builds) and 47 skipped (F1/G4/H7 packs not installed
   in the clone), templates 11/11, app host tests 3/3. Not reinstalled in the clone: the F1/G4/H7 Cube packs and the
   flash group (OpenOCD, probe-rs). Clone moved to the Trash afterwards (logged).
+- Addendum (Rust/Zig/BEAM): new `toolchain/freertos/qemu/langs.cmake` (rustc of 32_17_embedded_rust, Zig of
+  32_24_microzig, reached via `$BOX_EMBEDDED_RUST` / `$BOX_MICROZIG` or the sibling folder, never copied). Examples
+  qemu-rust-task and qemu-zig-task (a task in Rust/Zig computing statistics over a queue, C shims for kernel macros)
+  and templates of the same names: all PASS on qemu; `needs.sh` exits 3 (SKIP) when the ID is missing, honoured by
+  `examples test` and `templates test`. Linker script now defines `__exidx_start/end` (Zig objects pull the Arm
+  unwinder). BEAM: not supported (AtomVM is its own VM image, not a FreeRTOS-Kernel task); see README.

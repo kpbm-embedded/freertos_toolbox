@@ -299,7 +299,7 @@ cmd_run() {
 }
 
 cmd_examples() {
-  local sub="${1:-list}" ex t pass=0 fail=0 skip=0 failed=() list=()
+  local sub="${1:-list}" ex t pass=0 fail=0 skip=0 failed=() list=() msg
   shift || true
   case "$sub" in list | build | test) ;; *) die_usage "examples list|build|test [ex...]" ;; esac
   if [[ $# -gt 0 ]]; then list=("$@"); else
@@ -317,6 +317,9 @@ cmd_examples() {
     [[ -d "$EXAMPLES/$ex" ]] || die "no example '$ex'"
     while read -r t; do
       local b="$OUT/examples/$ex/$t" ok=1
+      if [[ -f "$EXAMPLES/$ex/needs.sh" ]] && ! msg="$(bash "$EXAMPLES/$ex/needs.sh" 2>&1)"; then
+        skip=$((skip + 1)); echo "SKIP $ex [$t]: ${msg#SKIP: }"; continue
+      fi
       if ! board_ready "$t"; then
         skip=$((skip + 1)); echo "SKIP $ex [$t]: its STM32Cube pack is not installed (scripts/setup install stm32)"; continue
       fi
@@ -366,7 +369,8 @@ cmd_new() {
 
 # Check one instantiated template: build for every target, run qemu targets, run host tests if it has tests/.
 check_template_app() { # app-dir name
-  local dir="$1" name="$2" t ok=0 b
+  local dir="$1" name="$2" t ok=0 b msg
+  if [[ -f "$dir/needs.sh" ]] && ! msg="$(bash "$dir/needs.sh" 2>&1)"; then echo "  skip: ${msg#SKIP: }"; return 0; fi
   while read -r t; do
     b="$OUT/templates/$name/$t"
     if ! board_ready "$t"; then echo "  skip $t: its STM32Cube pack is not installed"; continue; fi

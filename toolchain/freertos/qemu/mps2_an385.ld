@@ -17,7 +17,7 @@ SECTIONS
     KEEP(*(.init)) KEEP(*(.fini))
     . = ALIGN(4);
   } > FLASH
-  .ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) } > FLASH
+  .ARM.exidx : { __exidx_start = .; *(.ARM.exidx* .gnu.linkonce.armexidx.*) __exidx_end = .; } > FLASH
   _sidata = LOADADDR(.data);
   .data : {
     . = ALIGN(4); _sdata = .;

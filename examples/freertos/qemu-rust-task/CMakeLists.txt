@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.20)
+# A FreeRTOS task in Rust on qemu mps2-an385; the Rust compiler is reached in its own ID (toolchain/freertos/qemu/langs.cmake).
+if(NOT DEFINED ENV{FREERTOS_QEMU})
+  message(FATAL_ERROR "source toolchain/freertos/env.sh first (scripts/app does it)")
+endif()
+set(CMAKE_TOOLCHAIN_FILE $ENV{FREERTOS_QEMU}/arm-none-eabi.cmake)
+set(BOARD "mps2-an385" CACHE STRING "qemu mps2-an385 only")
+project(qemu-rust-task C ASM)
+include($ENV{FREERTOS_QEMU}/freertos_qemu.cmake)
+include($ENV{FREERTOS_QEMU}/langs.cmake)
+add_executable(qemu-rust-task src/main.c src/rtos_shim.c)
+freertos_rust_staticlib(qemu-rust-task src/task.rs)
+freertos_qemu(qemu-rust-task)

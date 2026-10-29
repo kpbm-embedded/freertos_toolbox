@@ -1,0 +1,4 @@
+name        = "qemu-rust-task"
+description = "FreeRTOS app with one task written in Rust (C shims for kernel macros, Rust compiler reached in its ID), self-checking on qemu"
+targets     = ["mps2-an385"]
+checks      = ["build", "qemu"]          # what `scripts/app templates test` does with an instance

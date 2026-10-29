@@ -2,9 +2,9 @@
 
 FreeRTOS-Kernel V11.3.2 on STM32 boards (BlackPill F411, WeAct G431, mini H743, BluePill F103), built with the STM32Cube HALs,
 the Arm GNU toolchain, cmake and ninja, and on qemu `mps2-an385` (Cortex-M3) for tests without a board. Use it to build,
-unit-test, run (qemu), flash and monitor FreeRTOS apps; 30 examples, 11 templates.
+unit-test, run (qemu), flash and monitor FreeRTOS apps; 32 examples, 13 templates (C, plus Rust and Zig tasks).
 
-Status: **ready** (2026-10-29): 14 qemu examples run and pass, 16 board examples build (63 board builds), 11 templates
+Status: **ready** (2026-10-29): 16 qemu examples run and pass, 16 board examples build (63 board builds), 11 templates
 instantiate and build/run/test, smoke 24/24, doctor clean. **Untested on hardware** (no board attached): flash, monitor and
 the board examples are build-checked only.
 **Self-contained:** it uses only this folder (toolchains installed from `config/pins.tsv`), plus its build output.
@@ -95,6 +95,8 @@ From anywhere: `box run freertos <command> ...` runs `scripts/app` with the same
 | `qemu-trace-hooks` | qemu | traceTASK_SWITCHED_IN / traceQUEUE_* recorder, run-time stats from a hardware counter |
 | `qemu-mutex-inherit` | qemu | priority inheritance checked while it happens; recursive mutex |
 | `qemu-stack-overflow` | qemu | method-2 stack overflow detection, high-water marks |
+| `qemu-rust-task` | qemu | a task written in Rust (no_std staticlib) talking to C tasks over queues |
+| `qemu-zig-task` | qemu | the same task written in Zig (freestanding object) |
 | adc-read, blink, button-irq, dma-uart, event-groups, i2c-scan, low-power, mutex, pwm-fade, stack-overflow-hook, sw-timers, tasks-queue, timer, uart-cli, uart-hello, usb-cdc | blackpill-f411 (default), weact-g431, mini-h743, bluepill-f103 (button-irq: not on the BluePill) | board peripherals with FreeRTOS; build-checked |
 
 All ISR-to-task paths in the board examples use task notifications or stream buffers at NVIC priority 6; in the qemu examples
@@ -118,6 +120,18 @@ names) to `apps/<name>`; refuses to overwrite. `scripts/app templates test` chec
 | `stm32-app` | 4 STM32 boards | LED + log tasks on the board layer (`scripts/app build`, `flash`) |
 | `stm32-app-tests` | 4 STM32 boards + host | logic in `lib/` (moving average) with GoogleTest host tests |
 | `dual-target` | qemu + blackpill-f411 | one app, `platform/{qemu,stm32}.c`: test on qemu, deploy to the board |
+| `qemu-rust-task` | qemu | FreeRTOS app with one Rust task (C shims for the kernel macros) |
+| `qemu-zig-task` | qemu | FreeRTOS app with one Zig task |
+
+## Rust, Zig, BEAM
+
+- **Rust, Zig: supported** as FreeRTOS tasks via FFI (`toolchain/freertos/qemu/langs.cmake`). The compilers are reached
+  in their own IDs, not copied: Rust in `32_17_embedded_rust` (`$BOX_EMBEDDED_RUST`, else the sibling folder; rustc
+  1.99.1, `thumbv7m-none-eabi`), Zig in `32_24_microzig` (`$BOX_MICROZIG`; Zig 0.17.0). Kernel macros (`xQueueSend`,
+  `pdMS_TO_TICKS`, ...) get real C functions in `src/rtos_shim.c`. Without the ID, `needs.sh` exits 3 and the example or
+  template is reported as SKIP.
+- **BEAM (AtomVM): not supported** here: AtomVM runs on its own ports (ESP-IDF's FreeRTOS fork, RP2040, STM32 via
+  libopencm3) as a prebuilt VM image, not as a task on FreeRTOS-Kernel/qemu; use `32_29_atomvm`.
 
 `mcu new freertos <name>` (tool `32_01_mcu`) also creates a minimal board app in `apps/`.
 
