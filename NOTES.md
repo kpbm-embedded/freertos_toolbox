@@ -60,3 +60,7 @@
   and templates of the same names: all PASS on qemu; `needs.sh` exits 3 (SKIP) when the ID is missing, honoured by
   `examples test` and `templates test`. Linker script now defines `__exidx_start/end` (Zig objects pull the Arm
   unwinder). BEAM: not supported (AtomVM is its own VM image, not a FreeRTOS-Kernel task); see README.
+- Correction (third language = Bend 2, not BEAM; no BEAM/AtomVM code had been added, only a README line, now replaced):
+  example host-bend-check (a FreeRTOS task on qemu vs. a host-side Bend reference in `src/stats.bend`, compared by
+  test.sh). 32_31_bend did not exist yet, so needs.sh skips it (exit 3); the C/qemu part was run by hand (PASS), the
+  Bend file is unchecked. Bend has no MCU/RTOS target; no such claim is made.

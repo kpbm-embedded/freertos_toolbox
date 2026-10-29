@@ -1,0 +1,7 @@
+name        = "host-bend-check"
+sdk         = "freertos"
+description = "Host-side Bend 2 reference (32_31_bend) for task logic: the sample statistics computed by a FreeRTOS task on qemu and by Bend on the host, compared"
+targets     = ["mps2-an385"]
+hardware    = "none: qemu mps2-an385 + host Bend (32_31_bend); skipped (exit 3) without it"
+features    = ["freertos", "bend", "host-reference", "qemu"]
+status      = "not run: 32_31_bend missing on 2026-10-29 (needs.sh skips); Bend file unverified"
