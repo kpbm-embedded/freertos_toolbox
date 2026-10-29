@@ -169,6 +169,16 @@ all_targets() {
   sed -n 's/^targets *= *\[\(.*\)\].*/\1/p' "$1" | tr ',' '\n' | tr -d ' "' | sed '/^$/d'
 }
 
+# 0 when the board can be built here: qemu always, an STM32 board when its Cube pack is installed.
+board_ready() { # board
+  [[ $1 == mps2-an385 ]] && return 0
+  local fam var
+  fam="$(sed -n 's/^set(B_FAMILY \([A-Z0-9]*\))/\1/p' "$ROOT/toolchain/stm32/boards/$1/board.cmake" 2>/dev/null)"
+  [[ -n $fam ]] || return 1
+  var="STM32_CUBE_$fam"
+  [[ -d "${!var:-/nonexistent}/Drivers" ]]
+}
+
 # Configure + build a CMake firmware project for a board into a dir (generic flow: the project sets its toolchain).
 build_project() { # src build-dir board
   need_env
@@ -289,7 +299,7 @@ cmd_run() {
 }
 
 cmd_examples() {
-  local sub="${1:-list}" ex t pass=0 fail=0 failed=() list=()
+  local sub="${1:-list}" ex t pass=0 fail=0 skip=0 failed=() list=()
   shift || true
   case "$sub" in list | build | test) ;; *) die_usage "examples list|build|test [ex...]" ;; esac
   if [[ $# -gt 0 ]]; then list=("$@"); else
@@ -307,8 +317,8 @@ cmd_examples() {
     [[ -d "$EXAMPLES/$ex" ]] || die "no example '$ex'"
     while read -r t; do
       local b="$OUT/examples/$ex/$t" ok=1
-      if [[ $t != mps2-an385 && ! -d "${STM32_CUBE_F4:-/nonexistent}/Drivers" ]]; then
-        echo "SKIP $ex [$t]: STM32Cube packs not installed (scripts/app setup install stm32)"; continue
+      if ! board_ready "$t"; then
+        skip=$((skip + 1)); echo "SKIP $ex [$t]: its STM32Cube pack is not installed (scripts/setup install stm32)"; continue
       fi
       mkdir -p "$b"
       build_project "$EXAMPLES/$ex" "$b" "$t" >"$b/build.log" 2>&1 || ok=0
@@ -323,7 +333,7 @@ cmd_examples() {
       fi
     done < <(all_targets "$EXAMPLES/$ex/example.toml")
   done
-  echo "examples $sub: $pass ok, $fail failed${failed[*]:+ (${failed[*]})}"
+  echo "examples $sub: $pass ok, $fail failed, $skip skipped${failed[*]:+ (${failed[*]})}"
   [[ $fail -eq 0 ]]
 }
 
@@ -359,9 +369,7 @@ check_template_app() { # app-dir name
   local dir="$1" name="$2" t ok=0 b
   while read -r t; do
     b="$OUT/templates/$name/$t"
-    if [[ $t != mps2-an385 && ! -d "${STM32_CUBE_F4:-/nonexistent}/Drivers" ]]; then
-      echo "  skip $t: STM32Cube packs not installed"; continue
-    fi
+    if ! board_ready "$t"; then echo "  skip $t: its STM32Cube pack is not installed"; continue; fi
     build_project "$dir" "$b" "$t" >"$OUT/templates/$name.$t.log" 2>&1 || { echo "  build $t failed ($OUT/templates/$name.$t.log)"; ok=1; continue; }
     if [[ $t == mps2-an385 ]]; then qemu_check "$b/$name.elf" "$b/qemu.log" >/dev/null || { echo "  qemu run failed ($b/qemu.log)"; ok=1; }; fi
   done < <(all_targets "$dir/template.toml")
